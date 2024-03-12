@@ -32,7 +32,7 @@ const (
 	errMarshalState      = "cannot marshal state object"
 	errUnmarshalAttr     = "cannot unmarshal state attributes"
 	errUnmarshalTFState  = "cannot unmarshal tfstate file"
-	errFmtNonString      = "cannot work with a non-string id: %s"
+	errFmtNonString      = "cannot work with a non-string identifier field:%s=%s"
 	errReadMainTF        = "cannot read main.tf.json file"
 )
 
@@ -190,10 +190,10 @@ func (fp *FileProducer) WriteMainTF() (ProviderHandle, error) {
 
 // EnsureTFState writes the Terraform state that should exist in the filesystem
 // to start any Terraform operation.
-func (fp *FileProducer) EnsureTFState(_ context.Context, tfID string) error {
+func (fp *FileProducer) EnsureTFState(_ context.Context, tfID string, identifierFields ...string) error {
 	// TODO(muvaf): Reduce the cyclomatic complexity by separating the attributes
 	// generation into its own function/interface.
-	empty, err := fp.isStateEmpty()
+	empty, err := fp.isStateEmpty(identifierFields...)
 	if err != nil {
 		return errors.Wrap(err, errCheckIfStateEmpty)
 	}
@@ -255,7 +255,7 @@ func (fp *FileProducer) EnsureTFState(_ context.Context, tfID string) error {
 }
 
 // isStateEmpty returns whether the Terraform state includes a resource or not.
-func (fp *FileProducer) isStateEmpty() (bool, error) {
+func (fp *FileProducer) isStateEmpty(identifierFields ...string) (bool, error) {
 	data, err := fp.fs.ReadFile(filepath.Join(fp.Dir, "terraform.tfstate"))
 	if errors.Is(err, iofs.ErrNotExist) {
 		return true, nil
@@ -275,15 +275,24 @@ func (fp *FileProducer) isStateEmpty() (bool, error) {
 	if err := json.JSParser.Unmarshal(attrData, &attr); err != nil {
 		return false, errors.Wrap(err, errUnmarshalAttr)
 	}
-	id, ok := attr["id"]
-	if !ok {
-		return true, nil
+	// use "id" as default attribute to determine resource existence if no identifier fields provided
+	if len(identifierFields) == 0 {
+		identifierFields = append(identifierFields, "id")
 	}
-	sid, ok := id.(string)
-	if !ok {
-		return false, errors.Errorf(errFmtNonString, fmt.Sprint(id))
+	for _, field := range identifierFields {
+		value, ok := attr[field]
+		if !ok {
+			return true, nil
+		}
+		valueAsString, ok := value.(string)
+		if !ok {
+			return false, errors.Errorf(errFmtNonString, field, fmt.Sprint(value))
+		}
+		if valueAsString == "" {
+			return true, nil
+		}
 	}
-	return sid == "", nil
+	return false, nil
 }
 
 type MainConfiguration struct {
