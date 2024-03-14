@@ -244,7 +244,7 @@ func (ws *WorkspaceStore) Workspace(ctx context.Context, c resource.SecretClient
 		return nil, errors.Wrap(err, errGetID)
 	}
 
-	if err := fp.EnsureTFState(ctx, w.terraformID); err != nil {
+	if err := fp.EnsureTFState(ctx, w.terraformID, cfg.ExternalName.IdentifierFields...); err != nil {
 		return nil, errors.Wrap(err, "cannot ensure tfstate file")
 	}
 

@@ -198,8 +198,8 @@ func TestIsStateEmpty(t *testing.T) {
 				empty: true,
 			},
 		},
-		"NoID": {
-			reason: "If there is no ID in the state, that means state is empty",
+		"NoIDAndIdentifierFields": {
+			reason: "If there is no ID in the state and no identifier fields is defined, that means state is empty",
 			args: args{
 				fs: func() afero.Afero {
 					f := afero.Afero{Fs: afero.NewMemMapFs()}
@@ -243,7 +243,7 @@ func TestIsStateEmpty(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.Errorf(errFmtNonString, fmt.Sprint(0)),
+				err: errors.Errorf(errFmtNonString, "id", fmt.Sprint(0)),
 			},
 		},
 		"NotEmpty": {
